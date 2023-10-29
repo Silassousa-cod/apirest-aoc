@@ -1,86 +1,94 @@
-const { Pool } = require('pg');
+const knex = require('knex');
+const knexFile = require('../knexfile.js');
+const banco = knex(knexFile);
 
-// Configuração da conexão com o banco de dados usando variáveis de ambiente
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Use a variável de ambiente DATABASE_URL
-});
+function validateRequiredFields(fields) {
+    return fields.every((field) => field !== undefined && field !== null);
+}
 
-// Controladores para CRUD
-const createUser = async (req, res) => {
-  try {
+function sendSuccessResponse(res, data) {
+    return res.json({ status: "success", data });
+}
+
+function sendErrorResponse(res, statusCode, message) {
+    return res.status(statusCode).json({ status: "error", message });
+}
+
+exports.list = async (req, res) => {
+    try {
+        const users = await banco('users').select();
+        // Formatando datas ou outras manipulações necessárias
+        sendSuccessResponse(res, users);
+    } catch (error) {
+        console.error(error);
+        sendErrorResponse(res, 500, "Falha ao listar usuários.");
+    }
+};
+
+exports.create = async (req, res) => {
     const { username, email } = req.body;
-    const query = 'INSERT INTO users (username, email) VALUES ($1, $2) RETURNING *';
-    createUser.push()
-    const values = [username, email];
-    const result = await pool.query(query, values);
-    res.json(result);
-  } catch (error) {
-    res.status(400).json({ error: 'Erro ao criar usuário' });
-  }
-};
 
-const getUsers = async (req, res) => {
-  try {
-    const query = 'SELECT * FROM users';
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar usuários' });
-  }
-};
-
-const getUser = async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    const query = 'SELECT * FROM users WHERE id = $1';
-    const result = await pool.query(query, [userId]);
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!validateRequiredFields([username, email])) {
+        return sendErrorResponse(res, 400, "Campos obrigatórios não preenchidos.");
     }
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar usuário' });
-  }
-};
 
-const updateUser = async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    const { name, email } = req.body;
-    const query = 'UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *';
-    const values = [name, email, userId];
-    const result = await pool.query(query, values);
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(404).json({ error: 'Usuário não encontrado' });
+    try {
+        await banco('users').insert({ username, email });
+        sendSuccessResponse(res, "Usuário criado com sucesso!");
+    } catch (error) {
+        console.error(error);
+        sendErrorResponse(res, 500, "Falha ao criar usuário.");
     }
-  } catch (error) {
-    res.status(400).json({ error: 'Erro ao atualizar usuário' });
-  }
 };
 
-const deleteUser = async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    const query = 'DELETE FROM users WHERE id = $1';
-    const result = await pool.query(query, [userId]);
-    if (result.rowCount > 0) {
-      res.json({ message: 'Usuário excluído com sucesso' });
-    } else {
-      res.status(404).json({ error: 'Usuário não encontrado' });
+exports.get = async (req, res) => {
+    const id = req.params.id;
+    try {
+        const user = await banco('users').where('id', id).first();
+        if (user) {
+            // Formatando datas ou outras manipulações necessárias
+            sendSuccessResponse(res, user);
+        } else {
+            sendErrorResponse(res, 404, "Usuário não encontrado.");
+        }
+    } catch (error) {
+        console.error(error);
+        sendErrorResponse(res, 500, "Falha ao obter usuário.");
     }
-  } catch (error) {
-    res.status(400).json({ error: 'Erro ao excluir usuário' });
-  }
 };
 
-module.exports = {
-  createUser,
-  getUsers,
-  getUser,
-  updateUser,
-  deleteUser,
+exports.update = async (req, res) => {
+    const id = req.params.id;
+    const { username, email } = req.body;
+
+    if (!validateRequiredFields([username, email])) {
+        return sendErrorResponse(res, 400, "Campos obrigatórios não preenchidos.");
+    }
+
+    try {
+        const updated = await banco('users').where('id', id).update({ username, email });
+        if (updated) {
+            sendSuccessResponse(res, "Usuário atualizado com sucesso.");
+        } else {
+            sendErrorResponse(res, 404, "Usuário não encontrado.");
+        }
+    } catch (error) {
+        console.error(error);
+        sendErrorResponse(res, 500, "Falha ao atualizar usuário.");
+    }
 };
 
+exports.delete = async (req, res) => {
+    const id = req.params.id;
+    try {
+        const deleted = await banco('users').where('id', id).del();
+        if (deleted) {
+            sendSuccessResponse(res, "Usuário excluído com sucesso.");
+        } else {
+            sendErrorResponse(res, 404, "Usuário não encontrado.");
+        }
+    } catch (error) {
+        console.error(error);
+        sendErrorResponse(res, 500, "Falha ao deletar usuário.");
+    }
+};
