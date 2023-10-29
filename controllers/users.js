@@ -58,15 +58,25 @@ exports.get = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-    const id = req.params.id;
+    const user_id = req.params.userId; // Altere o nome da variável para corresponder ao nome da coluna no banco de dados
     const { username, email } = req.body;
+
+    // Adicione um log para verificar os parâmetros recebidos
+    console.log(`user_id: ${user_id}, Username: ${username}, Email: ${email}`);
 
     if (!validateRequiredFields([username, email])) {
         return sendErrorResponse(res, 400, "Campos obrigatórios não preenchidos.");
     }
 
     try {
-        const updated = await banco('users').where('id', id).update({ username, email });
+        // Adicione um log para verificar a operação de atualização
+        console.log('Tentando atualizar o usuário no banco de dados.');
+
+        const updated = await banco('users').where('user_id', user_id).update({ username, email }); // Altere para 'user_id'
+
+        // Adicione um log para verificar o número de registros atualizados
+        console.log(`Registros atualizados: ${updated}`);
+
         if (updated) {
             sendSuccessResponse(res, "Usuário atualizado com sucesso.");
         } else {
@@ -79,9 +89,9 @@ exports.update = async (req, res) => {
 };
 
 exports.delete = async (req, res) => {
-    const id = req.params.id;
+    const user_id = req.params.userId; // Altere o nome da variável para corresponder ao nome da coluna no banco de dados
     try {
-        const deleted = await banco('users').where('id', id).del();
+        const deleted = await banco('users').where('user_id', user_id).del(); // Altere para 'user_id'
         if (deleted) {
             sendSuccessResponse(res, "Usuário excluído com sucesso.");
         } else {
